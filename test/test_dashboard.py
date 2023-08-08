@@ -7,5 +7,6 @@ from source.dashboard import update_graph
 
 
 def test_update_callback():
-    line = update_graph("France")
-    assert line.data[0].y[-1] == 61083916
+    must_be_1 = update_graph(100548)  # 100548 -> 1
+    must_be_0 = update_graph(100791)  # 100791 -> 0
+    assert must_be_0 == "0" and must_be_1 == "1"

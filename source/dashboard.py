@@ -1,10 +1,16 @@
 from dash import Dash, html, dcc, callback, Output, Input
 import plotly.express as px
 import pandas as pd
+import requests
 
-df = pd.read_csv(
-    "https://raw.githubusercontent.com/plotly/datasets/master/gapminder_unfiltered.csv"
+api_url = "https://home-credit-webapp-api-api.azurewebsites.net/predict"
+
+df = pd.read_feather("./input/application_test.feather")
+descirptions = pd.read_csv(
+    "./input/HomeCredit_columns_description.csv", encoding="latin-1"
 )
+
+# print(df.head())
 
 app = Dash(__name__)
 
@@ -12,17 +18,29 @@ server = app.server
 
 app.layout = html.Div(
     [
-        html.H1(children="Title of Dash App", style={"textAlign": "center"}),
-        dcc.Dropdown(df.country.unique(), "Canada", id="dropdown-selection"),
-        dcc.Graph(id="graph-content"),
+        html.H1(children="Home Credit Dashboard", style={"textAlign": "center"}),
+        dcc.Dropdown(df.SK_ID_CURR, id="dropdown-selection"),
+        dcc.Loading(
+            id="loading-1",
+            children=[
+                html.Div(
+                    [
+                        html.H2(children="Wait for request to finish", id="api-result"),
+                    ]
+                )
+            ],
+            type="default",
+        ),
+        # html.H2(children="Wait for request to finish", id="api-result"),
     ]
 )
 
 
-@callback(Output("graph-content", "figure"), Input("dropdown-selection", "value"))
+@callback(Output("api-result", "children"), Input("dropdown-selection", "value"))
 def update_graph(value):
-    dff = df[df.country == value]
-    return px.line(dff, x="year", y="pop")
+    if value is None:
+        return "Please select a client ID"
+    return str(requests.post(api_url, json={"client_id": value}).json())
 
 
 if __name__ == "__main__":

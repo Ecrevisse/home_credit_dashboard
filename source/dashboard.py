@@ -40,8 +40,9 @@ app.layout = html.Div(
 def update_graph(value):
     if value is None:
         return "Please select a client ID"
-    return str(requests.post(api_url, json={"client_id": value}).json())
+    return int(requests.post(api_url, json={"client_id": value}).json())
 
 
 if __name__ == "__main__":
+    api_url = "http://127.0.0.1:8000/predict"
     app.run(debug=True)

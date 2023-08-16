@@ -4,8 +4,18 @@ import dash_daq as daq
 import plotly.express as px
 import pandas as pd
 import requests
+import shap
+import numpy as np
+import plotly.graph_objects as go
+import json
+from io import BytesIO
+import base64
+import matplotlib
 
-api_url = "https://home-credit-webapp-api-api.azurewebsites.net/predict"
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+
+api_url = "https://home-credit-webapp-api-api.azurewebsites.net"
 
 df = pd.read_feather("./input/application_test.feather")
 descirptions = pd.read_csv(
@@ -43,10 +53,6 @@ app.layout = dbc.Container(
                             ],
                             type="default",
                         ),
-                    ]
-                ),
-                dbc.Col(
-                    [
                         daq.Thermometer(
                             id="thermometer-score",
                             value=0,
@@ -63,11 +69,36 @@ app.layout = dbc.Container(
                         ),
                     ]
                 ),
-                dbc.Col([]),
+                dbc.Col(
+                    [
+                        dcc.Loading(
+                            id="loading-2",
+                            children=[
+                                html.Div(
+                                    [html.Img(id="waterfall", src="")],
+                                    id="plot_div",
+                                    style={"width": "60rem", "overflow": "scroll"},
+                                )
+                            ],
+                            type="default",
+                        ),
+                    ]
+                ),
             ]
         ),
     ]
 )
+
+
+def fig_to_uri(in_fig, close_all=True, **save_args):
+    out_img = BytesIO()
+    in_fig.savefig(out_img, format="png", bbox_inches="tight", **save_args)
+    if close_all:
+        in_fig.clf()
+        plt.close("all")
+    out_img.seek(0)  # rewind file
+    encoded = base64.b64encode(out_img.read()).decode("ascii").replace("\n", "")
+    return "data:image/png;base64,{}".format(encoded)
 
 
 @callback(
@@ -79,6 +110,7 @@ app.layout = dbc.Container(
         Output("thermometer-score", "scale"),
         Output("score-label", "children"),
         Output("score-label", "style"),
+        Output("waterfall", "src"),
     ],
     Input("dropdown-selection", "value"),
 )
@@ -92,11 +124,36 @@ def update_api(value):
             {"custom": {"0": "0", "1": "1"}},
             "Score",
             {"textAlign": "center", "color": "grey"},
+            "",
         )
-    res = requests.post(api_url, json={"client_id": value}).json()
+    res = requests.post(api_url + "/predict", json={"client_id": value}).json()
     accepted = res[0]
     score = 1 - res[1]
     threshold = 1 - res[2]
+
+    summary = requests.post(api_url + "/shap_local", json={"client_id": value}).json()
+    # print(summary.content)
+    # summary = json.loads(summary.content)
+
+    shap_val_local = summary["shap_values"]
+    base_value = summary["base_value"]
+    feat_values = summary["data"]
+    feat_names = summary["feature_names"]
+
+    explanation = shap.Explanation(
+        np.reshape(np.array(shap_val_local, dtype="float"), (1, -1)),
+        base_value,
+        data=np.reshape(np.array(feat_values, dtype="float"), (1, -1)),
+        feature_names=feat_names,
+    )
+
+    # explanation = shap.Explanation(
+    #     np.reshape(np.array(shap_val_local, dtype="float"), (1, -1)),
+    # )
+    print(explanation[0])
+    fig = shap.waterfall_plot(explanation[0], max_display=10, show=False)
+    fig = fig_to_uri(fig)
+
     return (
         f"Client ID : {value}",
         "Credit Granted" if accepted == 0 else "Credit Denied",
@@ -120,9 +177,10 @@ def update_api(value):
             if score > (threshold / 2)
             else "red",
         },
+        fig,
     )
 
 
 if __name__ == "__main__":
-    api_url = "http://127.0.0.1:8000/predict"
+    api_url = "http://127.0.0.1:8000"
     app.run(debug=True)

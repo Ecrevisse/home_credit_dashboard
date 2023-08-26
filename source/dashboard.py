@@ -32,12 +32,15 @@ app.layout = dbc.Container(
             children="Home Credit Dashboard",
             style={"textAlign": "center"},
         ),
-        dbc.Row(
+        html.Br(),
+        dcc.Dropdown(df.SK_ID_CURR, id="dropdown-selection"),
+        html.Br(),
+        dbc.Tabs(
             [
-                dbc.Col(
-                    [
-                        dcc.Dropdown(df.SK_ID_CURR, id="dropdown-selection"),
-                        html.Br(),
+                dbc.Tab(
+                    label="Home",
+                    tab_id="Home",
+                    children=[
                         html.H2(children="", id="client-id"),
                         dcc.Loading(
                             id="loading-1",
@@ -67,30 +70,52 @@ app.layout = dbc.Container(
                             style={"textAlign": "center", "color": "grey"},
                             id="score-label",
                         ),
-                    ]
+                    ],
                 ),
-                dbc.Col(
-                    [
+                dbc.Tab(
+                    label="Client",
+                    tab_id="Client",
+                    children=[
                         dcc.Loading(
                             id="loading-2",
                             children=[
                                 html.Div(
                                     [html.Img(id="waterfall", src="")],
                                     id="plot_div",
-                                    style={"width": "60rem", "overflow": "scroll"},
+                                    # style={"width": "60rem", "overflow": "scroll"},
                                 )
                             ],
                             type="default",
                         ),
-                    ]
+                    ],
                 ),
-            ]
+                dbc.Tab(
+                    label="Global",
+                    tab_id="Global",
+                    children=[
+                        dcc.Loading(
+                            id="loading-3",
+                            children=[
+                                html.Div(
+                                    [html.Img(id="beeswarm", src="")],
+                                    id="plot_div-2",
+                                    # style={"width": "60rem", "overflow": "scroll"},
+                                )
+                            ],
+                            type="default",
+                        ),
+                    ],
+                ),
+            ],
+            id="tabs",
+            active_tab="Home",
         ),
     ]
 )
 
 
 def fig_to_uri(in_fig, close_all=True, **save_args):
+    print("fig to uri")
     out_img = BytesIO()
     in_fig.savefig(out_img, format="png", bbox_inches="tight", **save_args)
     if close_all:
@@ -98,7 +123,7 @@ def fig_to_uri(in_fig, close_all=True, **save_args):
         plt.close("all")
     out_img.seek(0)  # rewind file
     encoded = base64.b64encode(out_img.read()).decode("ascii").replace("\n", "")
-    return "data:image/png;base64,{}".format(encoded)
+    return f"data:image/png;base64,{encoded}"
 
 
 @callback(
@@ -115,6 +140,7 @@ def fig_to_uri(in_fig, close_all=True, **save_args):
     Input("dropdown-selection", "value"),
 )
 def update_api(value):
+    print("update local")
     if value is None:
         return (
             "Please select a client ID",
@@ -132,8 +158,6 @@ def update_api(value):
     threshold = 1 - res[2]
 
     summary = requests.post(api_url + "/shap_local", json={"client_id": value}).json()
-    # print(summary.content)
-    # summary = json.loads(summary.content)
 
     shap_val_local = summary["shap_values"]
     base_value = summary["base_value"]
@@ -147,10 +171,6 @@ def update_api(value):
         feature_names=feat_names,
     )
 
-    # explanation = shap.Explanation(
-    #     np.reshape(np.array(shap_val_local, dtype="float"), (1, -1)),
-    # )
-    print(explanation[0])
     fig = shap.waterfall_plot(explanation[0], max_display=10, show=False)
     fig = fig_to_uri(fig)
 
@@ -179,6 +199,69 @@ def update_api(value):
         },
         fig,
     )
+
+
+# @callback(
+#     [
+#         Output("beeswarm", "src"),
+#     ],
+#     Input("dropdown-selection", "value"),
+# )
+# def update_toto(value):
+#     if value is None:
+#         return ("",)
+#     summary = requests.post(api_url + "/shap_local", json={"client_id": value}).json()
+
+#     shap_val_local = summary["shap_values"]
+#     base_value = summary["base_value"]
+#     feat_values = summary["data"]
+#     feat_names = summary["feature_names"]
+
+#     explanation = shap.Explanation(
+#         np.reshape(np.array(shap_val_local, dtype="float"), (1, -1)),
+#         base_value,
+#         data=np.reshape(np.array(feat_values, dtype="float"), (1, -1)),
+#         feature_names=feat_names,
+#     )
+
+#     fig = shap.waterfall_plot(explanation[0], max_display=10, show=False)
+#     fig = fig_to_uri(fig)
+#     print(type(fig))
+#     return fig
+
+
+@callback(
+    [
+        Output("beeswarm", "src"),
+    ],
+    Input("dropdown-selection", "value"),
+)
+def update_api_global(value):
+    print("update global")
+    res = requests.get(api_url + "/shap_global").json()
+
+    shap_val_local = res["shap_values"]
+    base_value = res["base_value"]
+    feat_values = res["data"]
+    feat_names = res["feature_names"]
+
+    explanation = shap.Explanation(
+        np.array(shap_val_local),
+        np.array(base_value),
+        data=np.array(feat_values),
+        feature_names=feat_names,
+    )
+
+    # print(explanation.values)
+    shap.plots.beeswarm(explanation, max_display=10, show=False)
+    fig = plt.gcf()
+    print(type(fig))
+
+    fig = fig_to_uri(fig)
+
+    print(type(fig))
+    # print(res)
+    return (fig,)
 
 
 if __name__ == "__main__":

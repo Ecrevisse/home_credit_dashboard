@@ -227,35 +227,6 @@ def update_api(value):
     )
 
 
-# @callback(
-#     [
-#         Output("beeswarm", "src"),
-#     ],
-#     Input("dropdown-selection", "value"),
-# )
-# def update_api_global(value):
-#     print("update global")
-#     res = requests.get(api_url + "/shap_global").json()
-
-#     shap_val_local = res["shap_values"]
-#     base_value = res["base_value"]
-#     feat_values = res["data"]
-#     feat_names = res["feature_names"]
-
-#     explanation = shap.Explanation(
-#         np.array(shap_val_local),
-#         np.array(base_value),
-#         data=np.array(feat_values),
-#         feature_names=feat_names,
-#     )
-
-#     shap.plots.beeswarm(explanation, max_display=10, show=False)
-#     fig = plt.gcf()
-#     fig = fig_to_uri(fig)
-
-#     return (fig,)
-
-
 if __name__ == "__main__":
     api_url = "http://127.0.0.1:8000"
     app.run(debug=True)

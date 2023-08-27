@@ -22,6 +22,40 @@ descirptions = pd.read_csv(
     "./input/HomeCredit_columns_description.csv", encoding="latin-1"
 )
 
+
+def fig_to_uri(in_fig, close_all=True, **save_args):
+    print("fig to uri")
+    out_img = BytesIO()
+    in_fig.savefig(out_img, format="png", bbox_inches="tight", **save_args)
+    if close_all:
+        in_fig.clf()
+        plt.close("all")
+    out_img.seek(0)  # rewind file
+    encoded = base64.b64encode(out_img.read()).decode("ascii").replace("\n", "")
+    return f"data:image/png;base64,{encoded}"
+
+
+def get_global_shap_uri():
+    res = requests.get(api_url + "/shap_global").json()
+
+    shap_val_local = res["shap_values"]
+    base_value = res["base_value"]
+    feat_values = res["data"]
+    feat_names = res["feature_names"]
+
+    explanation = shap.Explanation(
+        np.array(shap_val_local),
+        np.array(base_value),
+        data=np.array(feat_values),
+        feature_names=feat_names,
+    )
+
+    shap.plots.beeswarm(explanation, max_display=10, show=False)
+    fig = plt.gcf()
+    fig = fig_to_uri(fig)
+    return fig
+
+
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 server = app.server
@@ -97,7 +131,11 @@ app.layout = dbc.Container(
                             id="loading-3",
                             children=[
                                 html.Div(
-                                    [html.Img(id="beeswarm", src="")],
+                                    [
+                                        html.Img(
+                                            id="beeswarm", src=get_global_shap_uri()
+                                        )
+                                    ],
                                     id="plot_div-2",
                                     # style={"width": "60rem", "overflow": "scroll"},
                                 )
@@ -112,18 +150,6 @@ app.layout = dbc.Container(
         ),
     ]
 )
-
-
-def fig_to_uri(in_fig, close_all=True, **save_args):
-    print("fig to uri")
-    out_img = BytesIO()
-    in_fig.savefig(out_img, format="png", bbox_inches="tight", **save_args)
-    if close_all:
-        in_fig.clf()
-        plt.close("all")
-    out_img.seek(0)  # rewind file
-    encoded = base64.b64encode(out_img.read()).decode("ascii").replace("\n", "")
-    return f"data:image/png;base64,{encoded}"
 
 
 @callback(
@@ -207,61 +233,27 @@ def update_api(value):
 #     ],
 #     Input("dropdown-selection", "value"),
 # )
-# def update_toto(value):
-#     if value is None:
-#         return ("",)
-#     summary = requests.post(api_url + "/shap_local", json={"client_id": value}).json()
+# def update_api_global(value):
+#     print("update global")
+#     res = requests.get(api_url + "/shap_global").json()
 
-#     shap_val_local = summary["shap_values"]
-#     base_value = summary["base_value"]
-#     feat_values = summary["data"]
-#     feat_names = summary["feature_names"]
+#     shap_val_local = res["shap_values"]
+#     base_value = res["base_value"]
+#     feat_values = res["data"]
+#     feat_names = res["feature_names"]
 
 #     explanation = shap.Explanation(
-#         np.reshape(np.array(shap_val_local, dtype="float"), (1, -1)),
-#         base_value,
-#         data=np.reshape(np.array(feat_values, dtype="float"), (1, -1)),
+#         np.array(shap_val_local),
+#         np.array(base_value),
+#         data=np.array(feat_values),
 #         feature_names=feat_names,
 #     )
 
-#     fig = shap.waterfall_plot(explanation[0], max_display=10, show=False)
+#     shap.plots.beeswarm(explanation, max_display=10, show=False)
+#     fig = plt.gcf()
 #     fig = fig_to_uri(fig)
-#     print(type(fig))
-#     return fig
 
-
-@callback(
-    [
-        Output("beeswarm", "src"),
-    ],
-    Input("dropdown-selection", "value"),
-)
-def update_api_global(value):
-    print("update global")
-    res = requests.get(api_url + "/shap_global").json()
-
-    shap_val_local = res["shap_values"]
-    base_value = res["base_value"]
-    feat_values = res["data"]
-    feat_names = res["feature_names"]
-
-    explanation = shap.Explanation(
-        np.array(shap_val_local),
-        np.array(base_value),
-        data=np.array(feat_values),
-        feature_names=feat_names,
-    )
-
-    # print(explanation.values)
-    shap.plots.beeswarm(explanation, max_display=10, show=False)
-    fig = plt.gcf()
-    print(type(fig))
-
-    fig = fig_to_uri(fig)
-
-    print(type(fig))
-    # print(res)
-    return (fig,)
+#     return (fig,)
 
 
 if __name__ == "__main__":

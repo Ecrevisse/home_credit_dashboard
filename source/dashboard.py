@@ -21,6 +21,7 @@ df = pd.read_feather("./input/application_test.feather")
 descirptions = pd.read_csv(
     "./input/HomeCredit_columns_description.csv", encoding="latin-1"
 )
+df_valid = pd.read_feather("./input/valid_cleaned.feather")
 
 
 def fig_to_uri(in_fig, close_all=True, **save_args):
@@ -120,6 +121,134 @@ app.layout = dbc.Container(
                                 )
                             ],
                             type="default",
+                        ),
+                    ],
+                ),
+                dbc.Tab(
+                    label="Dataset",
+                    tab_id="Dataset",
+                    children=[
+                        ## la le graphique univarie
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    [
+                                        dcc.Dropdown(
+                                            id="dropdown-feature-1",
+                                            options=[
+                                                {"label": col, "value": col}
+                                                for col in df_valid.columns
+                                                if col != "SK_ID_CURR"
+                                            ],
+                                        ),
+                                        dcc.Graph(id="univariate-1"),
+                                    ],
+                                    width=6,
+                                ),
+                                dbc.Col(
+                                    [
+                                        dcc.Dropdown(
+                                            id="dropdown-feature-2",
+                                            options=[
+                                                {"label": col, "value": col}
+                                                for col in df_valid.columns
+                                                if col != "SK_ID_CURR"
+                                            ],
+                                        ),
+                                        dcc.Graph(id="univariate-2"),
+                                    ],
+                                    width=6,
+                                ),
+                            ],
+                        ),
+                        ## la le graphique bivarie
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    [
+                                        dbc.Row(
+                                            [
+                                                dbc.Col(
+                                                    [
+                                                        dcc.Dropdown(
+                                                            id="dropdown-feature-bi-1-1",
+                                                            options=[
+                                                                {
+                                                                    "label": col,
+                                                                    "value": col,
+                                                                }
+                                                                for col in df_valid.columns
+                                                                if col != "SK_ID_CURR"
+                                                            ],
+                                                        ),
+                                                    ],
+                                                    width=6,
+                                                ),
+                                                dbc.Col(
+                                                    [
+                                                        dcc.Dropdown(
+                                                            id="dropdown-feature-bi-1-2",
+                                                            options=[
+                                                                {
+                                                                    "label": col,
+                                                                    "value": col,
+                                                                }
+                                                                for col in df_valid.columns
+                                                                if col != "SK_ID_CURR"
+                                                            ],
+                                                        ),
+                                                    ],
+                                                    width=6,
+                                                ),
+                                            ],
+                                        ),
+                                        dcc.Graph(id="bivariate-1"),
+                                    ],
+                                    width=6,
+                                ),
+                                dbc.Col(
+                                    [
+                                        dbc.Row(
+                                            [
+                                                dbc.Col(
+                                                    [
+                                                        dcc.Dropdown(
+                                                            id="dropdown-feature-bi-2-1",
+                                                            options=[
+                                                                {
+                                                                    "label": col,
+                                                                    "value": col,
+                                                                }
+                                                                for col in df_valid.columns
+                                                                if col != "SK_ID_CURR"
+                                                            ],
+                                                        ),
+                                                    ],
+                                                    width=6,
+                                                ),
+                                                dbc.Col(
+                                                    [
+                                                        dcc.Dropdown(
+                                                            id="dropdown-feature-bi-2-2",
+                                                            options=[
+                                                                {
+                                                                    "label": col,
+                                                                    "value": col,
+                                                                }
+                                                                for col in df_valid.columns
+                                                                if col != "SK_ID_CURR"
+                                                            ],
+                                                        ),
+                                                    ],
+                                                    width=6,
+                                                ),
+                                            ],
+                                        ),
+                                        dcc.Graph(id="bivariate-2"),
+                                    ],
+                                    width=6,
+                                ),
+                            ],
                         ),
                     ],
                 ),
@@ -227,6 +356,79 @@ def update_api(value):
     )
 
 
+def get_fig_univariate(value):
+    fig = px.strip(
+        df_valid,
+        x="TARGET",
+        y=value,
+        color="TARGET",
+    )
+    return fig
+
+
+def get_fig_bivariate(value1, value2):
+    fig = px.scatter(
+        df_valid,
+        x=value1,
+        y=value2,
+        color="TARGET",
+        marginal_x="histogram",
+        marginal_y="histogram",
+    )
+    return fig
+
+
+@callback(
+    Output("univariate-1", "figure"),
+    Input("dropdown-feature-1", "value"),
+)
+def update_univariate(value):
+    print("update univariate")
+    if value is None:
+        return {}
+    return get_fig_univariate(value)
+
+
+@callback(
+    Output("univariate-2", "figure"),
+    Input("dropdown-feature-2", "value"),
+)
+def update_univariate(value):
+    print("update univariate")
+    if value is None:
+        return {}
+    return get_fig_univariate(value)
+
+
+@callback(
+    Output("bivariate-1", "figure"),
+    Input("dropdown-feature-bi-1-1", "value"),
+    Input("dropdown-feature-bi-1-2", "value"),
+)
+def update_bivariate(value1, value2):
+    print("update bivariate")
+    if value1 is None or value2 is None:
+        return {}
+
+    return get_fig_bivariate(value1, value2)
+
+
+@callback(
+    Output("bivariate-2", "figure"),
+    Input("dropdown-feature-bi-2-1", "value"),
+    Input("dropdown-feature-bi-2-2", "value"),
+)
+def update_bivariate(value1, value2):
+    print("update bivariate")
+    if value1 is None or value2 is None:
+        return {}
+
+    return get_fig_bivariate(value1, value2)
+
+
 if __name__ == "__main__":
     api_url = "http://127.0.0.1:8000"
     app.run(debug=True)
+
+# il manque deux graph ou l'on slect une feature, et on voit la distribution de la feature ainsi que l'emplacement du client
+# idem mais avec un graph d'analyse bivariee avec un degrade de couleur en fonction du score

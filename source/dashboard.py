@@ -140,6 +140,30 @@ app.layout = dbc.Container(
                     ],
                 ),
                 dbc.Tab(
+                    label="Global",
+                    tab_id="Global",
+                    children=[
+                        html.Br(),
+                        html.H2(children="Interpretability Global"),
+                        html.Br(),
+                        dcc.Loading(
+                            id="loading-3",
+                            children=[
+                                html.Div(
+                                    [
+                                        html.Img(
+                                            id="beeswarm", src=get_global_shap_uri()
+                                        )
+                                    ],
+                                    id="plot_div-2",
+                                    # style={"width": "60rem", "overflow": "scroll"},
+                                )
+                            ],
+                            type="default",
+                        ),
+                    ],
+                ),
+                dbc.Tab(
                     label="Dataset",
                     tab_id="Dataset",
                     children=[
@@ -270,30 +294,6 @@ app.layout = dbc.Container(
                         ),
                     ],
                 ),
-                dbc.Tab(
-                    label="Global",
-                    tab_id="Global",
-                    children=[
-                        html.Br(),
-                        html.H2(children="Interpretability Global"),
-                        html.Br(),
-                        dcc.Loading(
-                            id="loading-3",
-                            children=[
-                                html.Div(
-                                    [
-                                        html.Img(
-                                            id="beeswarm", src=get_global_shap_uri()
-                                        )
-                                    ],
-                                    id="plot_div-2",
-                                    # style={"width": "60rem", "overflow": "scroll"},
-                                )
-                            ],
-                            type="default",
-                        ),
-                    ],
-                ),
                 # this tab contain a description of all the features
                 dbc.Tab(
                     label="Help",
@@ -363,7 +363,6 @@ app.layout = dbc.Container(
     Input("dropdown-selection", "value"),
 )
 def update_api(value):
-    print("update local")
     if value is None:
         return (
             "Please select a client ID",

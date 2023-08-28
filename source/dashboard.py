@@ -1,4 +1,4 @@
-from dash import Dash, html, dcc, callback, Output, Input
+from dash import Dash, html, dcc, callback, Output, Input, dash_table
 import dash_bootstrap_components as dbc
 import dash_daq as daq
 import plotly.express as px
@@ -15,13 +15,22 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-api_url = "https://home-credit-webapp-api-api.azurewebsites.net"
+if __name__ == "__main__":
+    api_url = "http://127.0.0.1:8000"
+else:
+    api_url = "https://home-credit-webapp-api-api.azurewebsites.net"
 
 df = pd.read_feather("./input/application_test.feather")
-descirptions = pd.read_csv(
+descriptions = pd.read_csv(
     "./input/HomeCredit_columns_description.csv", encoding="latin-1"
 )
+
+# for row in descriptions.iterrows():
+#     print(row[1].Row, row[1].Description)
+
 df_valid = pd.read_feather("./input/valid_cleaned.feather")
+
+model_features = requests.get(api_url + "/model_features").json()
 
 
 def fig_to_uri(in_fig, close_all=True, **save_args):
@@ -76,6 +85,9 @@ app.layout = dbc.Container(
                     label="Home",
                     tab_id="Home",
                     children=[
+                        html.Br(),
+                        html.H2(children="Home Credit Dashboard"),
+                        html.Br(),
                         html.H2(children="", id="client-id"),
                         dcc.Loading(
                             id="loading-1",
@@ -111,6 +123,9 @@ app.layout = dbc.Container(
                     label="Client",
                     tab_id="Client",
                     children=[
+                        html.Br(),
+                        html.H2(children="Interpretability Local"),
+                        html.Br(),
                         dcc.Loading(
                             id="loading-2",
                             children=[
@@ -128,6 +143,9 @@ app.layout = dbc.Container(
                     label="Dataset",
                     tab_id="Dataset",
                     children=[
+                        html.Br(),
+                        html.H2(children="Exploration of the dataset"),
+                        html.Br(),
                         ## la le graphique univarie
                         dbc.Row(
                             [
@@ -137,7 +155,7 @@ app.layout = dbc.Container(
                                             id="dropdown-feature-1",
                                             options=[
                                                 {"label": col, "value": col}
-                                                for col in df_valid.columns
+                                                for col in model_features
                                                 if col != "SK_ID_CURR"
                                             ],
                                         ),
@@ -151,7 +169,7 @@ app.layout = dbc.Container(
                                             id="dropdown-feature-2",
                                             options=[
                                                 {"label": col, "value": col}
-                                                for col in df_valid.columns
+                                                for col in model_features
                                                 if col != "SK_ID_CURR"
                                             ],
                                         ),
@@ -177,7 +195,7 @@ app.layout = dbc.Container(
                                                                     "label": col,
                                                                     "value": col,
                                                                 }
-                                                                for col in df_valid.columns
+                                                                for col in model_features
                                                                 if col != "SK_ID_CURR"
                                                             ],
                                                         ),
@@ -193,7 +211,7 @@ app.layout = dbc.Container(
                                                                     "label": col,
                                                                     "value": col,
                                                                 }
-                                                                for col in df_valid.columns
+                                                                for col in model_features
                                                                 if col != "SK_ID_CURR"
                                                             ],
                                                         ),
@@ -219,7 +237,7 @@ app.layout = dbc.Container(
                                                                     "label": col,
                                                                     "value": col,
                                                                 }
-                                                                for col in df_valid.columns
+                                                                for col in model_features
                                                                 if col != "SK_ID_CURR"
                                                             ],
                                                         ),
@@ -235,7 +253,7 @@ app.layout = dbc.Container(
                                                                     "label": col,
                                                                     "value": col,
                                                                 }
-                                                                for col in df_valid.columns
+                                                                for col in model_features
                                                                 if col != "SK_ID_CURR"
                                                             ],
                                                         ),
@@ -256,6 +274,9 @@ app.layout = dbc.Container(
                     label="Global",
                     tab_id="Global",
                     children=[
+                        html.Br(),
+                        html.H2(children="Interpretability Global"),
+                        html.Br(),
                         dcc.Loading(
                             id="loading-3",
                             children=[
@@ -273,10 +294,56 @@ app.layout = dbc.Container(
                         ),
                     ],
                 ),
+                # this tab contain a description of all the features
+                dbc.Tab(
+                    label="Help",
+                    tab_id="Help",
+                    children=[
+                        html.Br(),
+                        html.H2(children="Help"),
+                        html.Br(),
+                        html.H3(children="Description of the features"),
+                        html.Br(),
+                        html.Div(
+                            [
+                                dash_table.DataTable(
+                                    id="table",
+                                    columns=[
+                                        {"name": "Row", "id": "Row"},
+                                        {"name": "Description", "id": "Description"},
+                                    ],
+                                    data=[
+                                        {
+                                            "Row": row[1].Row,
+                                            "Description": row[1].Description,
+                                        }
+                                        for row in descriptions.iterrows()
+                                    ],
+                                    style_cell={
+                                        "textAlign": "left",
+                                        "whiteSpace": "normal",
+                                        "height": "auto",
+                                    },
+                                    style_data_conditional=[
+                                        {
+                                            "if": {"row_index": "odd"},
+                                            "backgroundColor": "rgb(248, 248, 248)",
+                                        }
+                                    ],
+                                    style_header={
+                                        "backgroundColor": "rgb(230, 230, 230)",
+                                        "fontWeight": "bold",
+                                    },
+                                )
+                            ]
+                        ),
+                    ],
+                ),
             ],
             id="tabs",
             active_tab="Home",
         ),
+        dcc.Store(id="accepted"),
     ]
 )
 
@@ -284,6 +351,7 @@ app.layout = dbc.Container(
 @callback(
     [
         Output("client-id", "children"),
+        Output("accepted", "data"),
         Output("api-result", "children"),
         Output("thermometer-score", "value"),
         Output("thermometer-score", "color"),
@@ -299,6 +367,7 @@ def update_api(value):
     if value is None:
         return (
             "Please select a client ID",
+            0,
             "",
             0,
             "grey",
@@ -331,6 +400,7 @@ def update_api(value):
 
     return (
         f"Client ID : {value}",
+        accepted,
         "Credit Granted" if accepted == 0 else "Credit Denied",
         score,
         "green"
@@ -356,78 +426,124 @@ def update_api(value):
     )
 
 
-def get_fig_univariate(value):
+def get_fig_univariate(feature, client_id, accepted):
     fig = px.strip(
         df_valid,
         x="TARGET",
-        y=value,
+        y=feature,
         color="TARGET",
     )
+    newnames = {"0.0": "Credit Granted", "1.0": "Credit Denied"}
+    fig.for_each_trace(
+        lambda t: t.update(
+            name=newnames[t.name],
+            legendgroup=newnames[t.name],
+            hovertemplate=t.hovertemplate.replace(t.name, newnames[t.name]),
+        )
+    )
+    if client_id is not None:
+        client_info = requests.post(
+            api_url + "/client_info",
+            json={"client_id": client_id, "client_infos": [feature]},
+        ).json()
+        if client_info is None:
+            return {}
+        if client_info[0][0] is None:
+            return {}
+        fig.add_trace(
+            go.Scatter(
+                x=[0 if accepted == 0 else 1],
+                y=[client_info[0][0]],
+                mode="markers",
+                marker=dict(color="orange", size=20),
+                name="You",
+            )
+        )
     return fig
 
 
-def get_fig_bivariate(value1, value2):
+def get_fig_bivariate(value1, value2, client_id):
     fig = px.scatter(
         df_valid,
         x=value1,
         y=value2,
         color="TARGET",
-        marginal_x="histogram",
-        marginal_y="histogram",
+        color_continuous_scale=["green", "red"],
+        # marginal_x="histogram",
+        # marginal_y="histogram",
     )
+    if client_id is not None:
+        client_info = requests.post(
+            api_url + "/client_info",
+            json={"client_id": client_id, "client_infos": [value1, value2]},
+        ).json()
+        if client_info is None:
+            return {}
+        if client_info[0][0] is None:
+            return {}
+        fig.add_trace(
+            go.Scatter(
+                x=[client_info[0][0]],
+                y=[client_info[0][1]],
+                mode="markers",
+                marker=dict(color="orange", size=20),
+                name="You",
+            )
+        )
     return fig
 
 
 @callback(
     Output("univariate-1", "figure"),
     Input("dropdown-feature-1", "value"),
+    Input("dropdown-selection", "value"),
+    Input("accepted", "data"),
 )
-def update_univariate(value):
-    print("update univariate")
-    if value is None:
+def update_univariate(feature, client_id, accepted):
+    if feature is None:
         return {}
-    return get_fig_univariate(value)
+    return get_fig_univariate(feature, client_id, accepted)
 
 
 @callback(
     Output("univariate-2", "figure"),
     Input("dropdown-feature-2", "value"),
+    Input("dropdown-selection", "value"),
+    Input("accepted", "data"),
 )
-def update_univariate(value):
-    print("update univariate")
-    if value is None:
+def update_univariate(feature, client_id, accepted):
+    if feature is None:
         return {}
-    return get_fig_univariate(value)
+    return get_fig_univariate(feature, client_id, accepted)
 
 
 @callback(
     Output("bivariate-1", "figure"),
     Input("dropdown-feature-bi-1-1", "value"),
     Input("dropdown-feature-bi-1-2", "value"),
+    Input("dropdown-selection", "value"),
 )
-def update_bivariate(value1, value2):
-    print("update bivariate")
+def update_bivariate(value1, value2, client_id):
     if value1 is None or value2 is None:
         return {}
 
-    return get_fig_bivariate(value1, value2)
+    return get_fig_bivariate(value1, value2, client_id)
 
 
 @callback(
     Output("bivariate-2", "figure"),
     Input("dropdown-feature-bi-2-1", "value"),
     Input("dropdown-feature-bi-2-2", "value"),
+    Input("dropdown-selection", "value"),
 )
-def update_bivariate(value1, value2):
-    print("update bivariate")
+def update_bivariate(value1, value2, client_id):
     if value1 is None or value2 is None:
         return {}
 
-    return get_fig_bivariate(value1, value2)
+    return get_fig_bivariate(value1, value2, client_id)
 
 
 if __name__ == "__main__":
-    api_url = "http://127.0.0.1:8000"
     app.run(debug=True)
 
 # il manque deux graph ou l'on slect une feature, et on voit la distribution de la feature ainsi que l'emplacement du client
